@@ -3,25 +3,8 @@
 import * as cc from 'cc';
 import { _decorator } from 'cc';
 import UIManager from "../mg/UIManager";
-import LoginManager from "./LoginManager";
 import { DFX_NETWORK, LEAGER_ICP_ID_LOCAL } from "./DefData";
-
-import { createIcpAgent } from './IcpAgentFactory';
-
-
-import { idlFactoryLedger } from "../did/icp_ledger.did";
-
-function getIcpSdkAgent(): any {
-    const mod = (globalThis as any)?.DfinityAgent;
-    if (!mod) throw new Error('DfinityAgent not loaded. Ensure lib3/icp-sdk-agent.js is loaded before application.js');
-    return mod;
-}
-
-function getIcpPrincipal(): any {
-    const Principal = getIcpSdkAgent()?.Principal;
-    if (!Principal) throw new Error('DfinityAgent.Principal missing');
-    return Principal;
-}
+import { getLedgerActor, getPrincipalCtor } from "../icp";
 
 export default class ICPManager {
     public static readonly Instance: ICPManager = new ICPManager();
@@ -31,14 +14,6 @@ export default class ICPManager {
     Init(){
 
 
-    }
-    private ledgerActor: any = null;
-    private ledgerCanisterId: string | null = null;
-    private getAgentHost(): string | undefined {
-        if (DFX_NETWORK === 'local') {
-        return 'http://127.0.0.1:4943';
-        }
-        return 'https://ic0.app';
     }
     private getDefaultLedgerCanisterId(): string {
         if (DFX_NETWORK === 'local') {
@@ -53,35 +28,7 @@ export default class ICPManager {
         : this.getDefaultLedgerCanisterId();
 
         cc.log("ICPManager: ensureLedgerActor using canisterId:", canisterId);
-
-        if (this.ledgerActor && this.ledgerCanisterId === canisterId) {
-        return this.ledgerActor;
-        }
-
-        await LoginManager.Instance.ensureAuthClient();
-        const identity = await LoginManager.Instance.getIdentity();
-
-        const host = this.getAgentHost();
-       // Cocos 运行环境下，query 签名验证会触发 fetchSubnetKeys -> canisterStatus.request，
-       // 某些环境会在 encodePath 阶段出现 "[object Set]" 的路径编码异常。
-       // 为保证查询/转账流程可用，这里先关闭 query 签名验证。
-		const agent = await createIcpAgent({
-			identity,
-			host,
-			isLocal: DFX_NETWORK === 'local',
-			verifyQuerySignatures: false,
-			fetchRootKey: true,
-            forceApiV2: DFX_NETWORK === 'local',
-		});
-       //如果不是本地环境，不用调用 fetchRootKey
-
-        const Actor = getIcpSdkAgent()?.Actor;
-        if (!Actor) throw new Error('DfinityAgent.Actor missing');
-
-        const canisterPrincipal = getIcpPrincipal().fromText(canisterId);
-        this.ledgerActor = Actor.createActor(idlFactoryLedger, { agent, canisterId: canisterPrincipal });
-        this.ledgerCanisterId = canisterId;
-        return this.ledgerActor;
+        return await getLedgerActor({ canisterId });
     }
     private parseIcpToE8s(amountText: string): number {
         const s = (amountText || '').trim();
@@ -113,7 +60,7 @@ export default class ICPManager {
 
         cc.log("GetBalance principalText=",principalText);
 
-        const owner = getIcpPrincipal().fromText(pText);
+        const owner = getPrincipalCtor().fromText(pText);
         const balanceE8sAny: any = await actor.icrc1_balance_of({ owner, subaccount: [] });
         const balanceE8sNum = Number(balanceE8sAny && balanceE8sAny.toString ? balanceE8sAny.toString() : balanceE8sAny);
         const balance = balanceE8sNum / 1e8;
@@ -127,7 +74,7 @@ export default class ICPManager {
 
         const actor = await this.ensureLedgerActor(strLedgerCanisterId);
         cc.log("SendICP toText=",toText);
-		const toOwner = getIcpPrincipal().fromText(toText);
+		const toOwner = getPrincipalCtor().fromText(toText);
         cc.log("SendICP toOwner=", toOwner);
         const amountE8s = this.parseIcpToE8s(amountText);
 
@@ -156,4 +103,3 @@ export default class ICPManager {
     }
     
 }
-

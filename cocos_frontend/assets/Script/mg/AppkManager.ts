@@ -5,7 +5,6 @@ import UIManager from "../mg/UIManager";
 import LoginManager from "./LoginManager";
 import ICPManager from "./ICPManager";
 import { BACKEND_CANISTER_ID_LOCAL_FALLBACK } from "./DefData";
-import KlineManager from './KlineManager';
 
 export default class AppManager {
     public static readonly Instance: AppManager = new AppManager();
@@ -16,8 +15,6 @@ export default class AppManager {
         LoginManager.Instance.Init();
         BackManager.Instance.Init();
         ICPManager.Instance.Init();
-        KlineManager.Instance.Init();
-
     }
     showTip(strTip: string)
     {

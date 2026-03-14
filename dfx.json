@@ -1,42 +1,18 @@
 {
   "canisters": {
-
-    "internet_identity": {
-      "type": "custom",
-      "candid": "https://github.com/dfinity/internet-identity/releases/download/release-2025-12-19/internet_identity.did",
-      "wasm": "https://github.com/dfinity/internet-identity/releases/download/release-2025-12-19/internet_identity_dev.wasm.gz",
-      "init_arg": "(opt record { captcha_config = opt record { max_unsolved_captchas= 50:nat64; captcha_trigger = variant {Static = variant {CaptchaDisabled}}}})",
-      "frontend": {}
-    },
     "backend": {
       "main": "backend/app.mo",
       "type": "motoko",
       "args": "--enhanced-orthogonal-persistence"
     },
     "frontend": {
-      "dependencies": ["backend", "internet_identity"],
+      "dependencies": ["backend"],
       "build": "echo skip-assets-build",
       "frontend": {
         "entrypoint": "cocos_frontend/build/web-mobile/index.html"
       },
       "source": ["cocos_frontend/build/web-mobile"],
       "type": "assets"
-    },
-    "signer": {
-      "type": "custom",
-      "candid": "https://raw.githubusercontent.com/dfinity/chain-fusion-signer/main/src/signer/canister/signer.did",
-      "wasm": "https://github.com/dfinity/chain-fusion-signer/releases/download/v0.2.8/signer.wasm.gz",
-      "init_arg": "(variant { Init = record { ecdsa_key_name = \"dfx_test_key\"; ic_root_key_raw = null; cycles_ledger = opt principal \"avqkn-guaaa-aaaaa-qaaea-cai\" } })"
-    },
-    "ledger": {
-      "type": "custom",
-      "candid": "https://raw.githubusercontent.com/dfinity/ic/d87954601e4b22972899e9957e800406a0a6b929/rs/rosetta-api/icp_ledger/ledger.did",
-      "wasm": "https://download.dfinity.systems/ic/d87954601e4b22972899e9957e800406a0a6b929/canisters/ledger-canister.wasm.gz",
-      "remote": {
-        "id": {
-          "ic": "ryjl3-tyaaa-aaaaa-aaaba-cai"
-        }
-      }
     }
   },
   "output_env_file": ".env",

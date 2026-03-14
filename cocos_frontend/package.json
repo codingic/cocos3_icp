@@ -30,7 +30,9 @@
   },
   "scripts": {
     "debug": "npx http-server build/web-mobile -p 8080 -c-1",
+    "build:cocos": "bash ./build-cocos.sh",
     "build:icp-sdk": "node ./tools/build-icp-sdk.mjs",
-    "build:oisy-wallet-signer": "node ./tools/build-oisy-wallet-signer.mjs"
+    "build:oisy-wallet-signer": "node ./tools/build-oisy-wallet-signer.mjs",
+    "sync:runtime-config": "node ./tools/sync-runtime-config.mjs"
   }
 }

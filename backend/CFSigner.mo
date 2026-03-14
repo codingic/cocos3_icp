@@ -3,20 +3,15 @@ import Blob "mo:base/Blob";
 import Cycles "mo:base/ExperimentalCycles";
 import Error "mo:base/Error";
 import CFSignerdid "CFSignerdid";
+import RuntimeConfig "RuntimeConfig";
 
 module {
 
-  // For local, use dfx canister id signer
-  let signer : CFSignerdid.Service = actor ("a3shf-5eaaa-aaaaa-qaafa-cai");
-
-  // Helper to determine the key name (dfx_test_key for local, key_1 for mainnet)
-  public func getKeyName() : async Text {
-    "dfx_test_key" // For local signer canister
-  };
+  let signer : CFSignerdid.Service = actor (RuntimeConfig.signerCanisterId);
 
   public func getSelfEthPublicKey() : async Blob {
     let derivationPath : [Blob] = [];//0x03856f8412642933e191a3315c49e8cc2ecdc8f629343214de4ba518f36ccb87fa
-    let keyName = await getKeyName();
+    let keyName = RuntimeConfig.signerKeyName;
 
 
     let args : CFSignerdid.EcdsaPublicKeyArgument = {
@@ -65,7 +60,7 @@ module {
   // Signs a message hash using the caller's derived key via Chain Fusion Signer.
   public func signWithSigner(caller : Principal, message_hash : Blob,) : async Blob {
     let derivationPath : [Blob] = [Principal.toBlob(caller)];
-    let keyName = await getKeyName();
+    let keyName = RuntimeConfig.signerKeyName;
 
     let args : CFSignerdid.SignWithEcdsaArgument = {
       message_hash = message_hash;

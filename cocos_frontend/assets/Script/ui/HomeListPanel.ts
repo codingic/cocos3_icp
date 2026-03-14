@@ -83,11 +83,7 @@ export default class HomeListPanel extends UIPanel {
             "oisy登录", //2
             "官方singer",
             "oisy connect", //4
-            "涨幅排行榜",
-            "k线数据管理", //6
-            "周期内排行榜",
-            "wallet9","wallet10",
-        "wallet11","wallet12","wallet13","wallet14","wallet15","wallet16","wallet17","wallet18","wallet19","wallet20"];
+        ];
 
        //写个循环创建20个数据
         for(let i = 0; i < vName.length; i++) {
@@ -150,29 +146,11 @@ export default class HomeListPanel extends UIPanel {
             //oisy登录
             UIManager.OpenPanel(EUIPanelType.OISYCONNECTPANEL);
         }
-         else if(nId === 3 )
+        else if(nId === 3 )
         {
             //oisy登录
             UIManager.OpenPanel(EUIPanelType.CHAINFSPANEL);
         }
-        else if(nId === 5 )
-        {
-            //
-            UIManager.OpenPanel(EUIPanelType.KLINEPANEL);
-        }
-        else if(nId === 6 )
-        {
-            //
-            UIManager.OpenPanel(EUIPanelType.MAGKLINEPANEL);
-        }
-
-        else if(nId === 7 )
-        {
-            //
-           // UIManager.OpenPanel(EUIPanelType.MAGKLINEPANEL);
-        }
-       
-        
     }
   
     clickBegin(nTag){
@@ -183,4 +161,3 @@ export default class HomeListPanel extends UIPanel {
     }
     
 }
-

@@ -1,22 +1,12 @@
 
 import * as cc from 'cc';
 import { _decorator } from 'cc';
-import LoginManager from "./LoginManager";
-import { idlFactoryBack } from "../did/backend.did";
-
-import { BACKEND_CANISTER_ID_LOCAL_FALLBACK, DFX_NETWORK } from "./DefData";
-import { createIcpAgent } from './IcpAgentFactory';
-
-function getIcpSdkAgent(): any {
-    const mod = (globalThis as any)?.DfinityAgent;
-    if (!mod) throw new Error('DfinityAgent not loaded. Ensure lib3/icp-sdk-agent.js is loaded before application.js');
-    return mod;
-}
+import { BACKEND_CANISTER_ID_LOCAL_FALLBACK } from "./DefData";
+import { getBackendActor } from "../icp";
 
 export default class BackManager {
     public static readonly Instance: BackManager = new BackManager();
     private constructor() {}
-    private backendActor: any = null;
     Init() {
 
     }
@@ -30,41 +20,12 @@ export default class BackManager {
     private getBackendCanisterId(): string {
            return BACKEND_CANISTER_ID_LOCAL_FALLBACK;
     }
-    private getAgentHost(): string | undefined {
-       
-       // 如果是本地开发环境，强制指向本地 replica 地址，避免 Cocos Preview (localhost:7456) 拦截请求
-        if (DFX_NETWORK === 'local') {
-        return 'http://127.0.0.1:4943';
-        }
-       // 如果是 IC 主网，host 设为 undefined 或 "https://ic0.app"，HttpAgent 默认会连接主网
-        return "https://ic0.app";
-    }
     private async ensureBackendActor(): Promise<any> {
-        if (this.backendActor) return this.backendActor;
-       //if (this.isEditorOrPreview()) throw new Error('Backend actor disabled in editor/preview');
-
-        await LoginManager.Instance.ensureAuthClient();
-        const identity = await LoginManager.Instance.getIdentity();
-
         const canisterId = this.getBackendCanisterId();
-        if (!canisterId) throw new Error('Backend canisterId not found');
-
-        const host = this.getAgentHost();
-        cc.log("BackManager: creating agent with host:", host);
-		const agent = await createIcpAgent({
-			identity,
-			host,
-			isLocal: DFX_NETWORK === 'local',
-			verifyQuerySignatures: false,
-			fetchRootKey: true,
-            forceApiV2: DFX_NETWORK === 'local',
-		});
-
-        const Actor = getIcpSdkAgent()?.Actor;
-        if (!Actor) throw new Error('DfinityAgent.Actor missing');
-
-        this.backendActor = Actor.createActor(idlFactoryBack, { agent, canisterId });
-        return this.backendActor;
+        if (!canisterId) {
+            throw new Error('Backend canisterId not found. Deploy backend first, then sync app canister ids.');
+        }
+        return await getBackendActor({ canisterId });
     }
     async GetEthAddressFromBack(): Promise<string> {
         cc.log("BackManager: GetEthAddressFromBack called");
@@ -88,7 +49,7 @@ export default class BackManager {
         const publicKey = await actor.requestPubkey();//hex
         cc.log("BackManager: GetEthPubkeyFromCFS publicKey:"+publicKey);
         
-        let publicKeyHex1 =  ethers.hexlify(publicKey);
+        const publicKeyHex1 =  ethers.hexlify(publicKey);
         cc.log("BackManager: GetEthPubkeyFromCFS publicKeyHex1:"+publicKeyHex1);
         return ethers.computeAddress(ethers.hexlify(publicKey));
     }
@@ -132,4 +93,3 @@ export default class BackManager {
         return sigBytes;
     }
 }
-

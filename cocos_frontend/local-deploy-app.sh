@@ -1,25 +1,21 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
+DFX_NETWORK_NAME="${DFX_NETWORK:-local}"
+
+echo "Syncing runtime config for network '$DFX_NETWORK_NAME'..."
+DFX_NETWORK="$DFX_NETWORK_NAME" node ./tools/sync-runtime-config.mjs
+
+echo "Deploying backend canister to '$DFX_NETWORK_NAME'..."
+dfx deploy backend --network "$DFX_NETWORK_NAME"
+
+echo "Refreshing runtime config after backend deploy..."
+DFX_NETWORK="$DFX_NETWORK_NAME" node ./tools/sync-runtime-config.mjs
 
 echo "Building Cocos Creator project..."
+bash ./build-cocos.sh
 
-set +e
-/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/CocosCreator --project "./" --build "configPath=buildConfig_web-mobile.json"
-EXIT_C
-ODE=$?
-set -e
-
-if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 36 ]; then
-    echo "Cocos Creator build failed with exit code $EXIT_CODE"
-    exit $EXIT_CODE
-fi
-
-if [ $EXIT_CODE -eq 36 ]; then
-    echo "Cocos Creator build finished with exit code 36 (likely warnings), proceeding..."
-fi
-
-
-dfx deploy 
+echo "Deploying frontend canister to '$DFX_NETWORK_NAME'..."
+dfx deploy frontend --network "$DFX_NETWORK_NAME"
 
 echo "Deployment Done!"
