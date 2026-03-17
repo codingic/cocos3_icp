@@ -7,11 +7,13 @@ const require = createRequire(import.meta.url);
 const workspaceRoot = path.resolve(import.meta.dirname, "..", "..");
 const cocosRoot = path.resolve(import.meta.dirname, "..");
 const configRoot = path.join(cocosRoot, "assets", "Script", "config");
+const projectConfigRoot = path.join(cocosRoot, "config");
 const backendRoot = path.join(workspaceRoot, "backend");
 
 const network = process.env.DFX_NETWORK || "local";
-const canisterIdsPath = path.join(workspaceRoot, ".dfx", network, "canister_ids.json");
+const localCanisterIdsPath = path.join(workspaceRoot, ".dfx", "local", "canister_ids.json");
 const localRuntimePath = path.join(configRoot, "localRuntime.generated.js");
+const productionRuntimePath = path.join(projectConfigRoot, "productionRuntime.config.js");
 const frontendRuntimeOutputPath = path.join(configRoot, "appRuntime.generated.js");
 const backendRuntimeOutputPath = path.join(backendRoot, "RuntimeConfig.mo");
 
@@ -53,6 +55,15 @@ function readLocalRuntimeOverrides() {
   }
 
   return resolveInterop(mod, "LOCAL_RUNTIME_OVERRIDES");
+}
+
+function readProductionRuntimeConfig() {
+  const mod = requireFresh(productionRuntimePath);
+  if (!mod) {
+    throw new Error(`Production runtime config not found: ${productionRuntimePath}`);
+  }
+
+  return resolveInterop(mod, "PRODUCTION_RUNTIME");
 }
 
 function envText(name, fallback = "") {
@@ -101,21 +112,42 @@ function resolveBaseRuntime() {
     };
   }
 
+  const productionRuntime = readProductionRuntimeConfig();
+
   return {
-    dfxNetwork: network,
-    replicaHost: envText("REPLICA_HOST", MAINNET_REPLICA_HOST),
-    iiCanisterId: envText("II_CANISTER_ID", ""),
-    identityProviderUrl: envText("IDENTITY_PROVIDER_URL", MAINNET_IDENTITY_PROVIDER_URL),
-    cyclesLedgerCanisterId: envText("CYCLES_LEDGER_CANISTER_ID", ""),
-    signerCanisterId: envText("SIGNER_CANISTER_ID", ""),
-    icpLedgerCanisterId: envText("ICP_LEDGER_CANISTER_ID", MAINNET_ICP_LEDGER_CANISTER_ID),
-    chatLedgerCanisterId: envText("CHAT_LEDGER_CANISTER_ID", ""),
-    rpcOverrides: envJson("RPC_OVERRIDES_JSON", {}),
-    signerKeyName: envText("SIGNER_KEY_NAME", "key_1"),
+    dfxNetwork: "ic",
+    replicaHost: envText("REPLICA_HOST", productionRuntime.replicaHost || MAINNET_REPLICA_HOST),
+    iiCanisterId: envText("II_CANISTER_ID", productionRuntime.iiCanisterId || ""),
+    identityProviderUrl: envText(
+      "IDENTITY_PROVIDER_URL",
+      productionRuntime.identityProviderUrl || MAINNET_IDENTITY_PROVIDER_URL,
+    ),
+    cyclesLedgerCanisterId: envText(
+      "CYCLES_LEDGER_CANISTER_ID",
+      productionRuntime.cyclesLedgerCanisterId || "",
+    ),
+    signerCanisterId: envText("SIGNER_CANISTER_ID", productionRuntime.signerCanisterId || ""),
+    icpLedgerCanisterId: envText(
+      "ICP_LEDGER_CANISTER_ID",
+      productionRuntime.icpLedgerCanisterId || MAINNET_ICP_LEDGER_CANISTER_ID,
+    ),
+    chatLedgerCanisterId: envText(
+      "CHAT_LEDGER_CANISTER_ID",
+      productionRuntime.chatLedgerCanisterId || "",
+    ),
+    rpcOverrides: envJson("RPC_OVERRIDES_JSON", productionRuntime.rpcOverrides || {}),
+    signerKeyName: envText("SIGNER_KEY_NAME", productionRuntime.signerKeyName || "key_1"),
+    backendCanisterId: envText("BACKEND_CANISTER_ID", productionRuntime.backendCanisterId || ""),
+    frontendCanisterId: envText("FRONTEND_CANISTER_ID", productionRuntime.frontendCanisterId || ""),
   };
 }
 
-function buildFrontendRuntime(baseRuntime, canisterIds) {
+function buildFrontendRuntime(baseRuntime) {
+  if (network !== "local") {
+    return { ...baseRuntime };
+  }
+
+  const canisterIds = readJsonIfExists(localCanisterIdsPath);
   return {
     ...baseRuntime,
     backendCanisterId: getCanisterId(canisterIds, "backend"),
@@ -123,14 +155,36 @@ function buildFrontendRuntime(baseRuntime, canisterIds) {
   };
 }
 
-function ensureBackendRuntime(baseRuntime) {
-  if (!baseRuntime.signerCanisterId) {
-    throw new Error(`SIGNER_CANISTER_ID is required for DFX_NETWORK='${network}'.`);
+function collectMissing(missing, value, label) {
+  if (typeof value !== "string" || !value.trim()) {
+    missing.push(label);
+  }
+}
+
+function ensureRuntime(baseRuntime, frontendRuntime) {
+  const missing = [];
+
+  collectMissing(missing, baseRuntime.signerCanisterId, "signerCanisterId");
+  collectMissing(missing, baseRuntime.signerKeyName, "signerKeyName");
+
+  if (network !== "local") {
+    collectMissing(missing, frontendRuntime.backendCanisterId, "backendCanisterId");
+    collectMissing(missing, frontendRuntime.frontendCanisterId, "frontendCanisterId");
   }
 
-  if (!baseRuntime.signerKeyName) {
-    throw new Error(`SIGNER_KEY_NAME is required for DFX_NETWORK='${network}'.`);
+  if (missing.length === 0) {
+    return;
   }
+
+  const sourcePath = network === "local" ? localRuntimePath : productionRuntimePath;
+  const envHints =
+    network === "local"
+      ? "or set the matching local runtime values"
+      : "or override them with BACKEND_CANISTER_ID / FRONTEND_CANISTER_ID / SIGNER_CANISTER_ID / SIGNER_KEY_NAME";
+
+  throw new Error(
+    `Missing runtime values for DFX_NETWORK='${network}': ${missing.join(", ")}. Update ${sourcePath} ${envHints}.`,
+  );
 }
 
 function writeFrontendRuntime(runtimeConfig) {
@@ -156,11 +210,10 @@ function writeBackendRuntime(baseRuntime) {
   fs.writeFileSync(backendRuntimeOutputPath, content);
 }
 
-const canisterIds = readJsonIfExists(canisterIdsPath);
 const baseRuntime = resolveBaseRuntime();
-const frontendRuntime = buildFrontendRuntime(baseRuntime, canisterIds);
+const frontendRuntime = buildFrontendRuntime(baseRuntime);
 
-ensureBackendRuntime(baseRuntime);
+ensureRuntime(baseRuntime, frontendRuntime);
 writeFrontendRuntime(frontendRuntime);
 writeBackendRuntime(baseRuntime);
 

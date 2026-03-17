@@ -49,6 +49,11 @@ export default class UIManager {
     OpenPanel(nPanelId: number, strParam?: string)
     {
         let uiPanelTab = ResManager.Instance.mapUIPanelTab[nPanelId];
+        if(uiPanelTab == null)
+        {
+            cc.error('UI panel config not found for id=' + nPanelId);
+            return;
+        }
         if(uiPanelTab.nRemove === 1)
         {
             this.appRootNode.removeAllChildren();

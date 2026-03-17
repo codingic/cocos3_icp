@@ -48,7 +48,10 @@ export default class ResManager {
         console.log('onLoadTabEnd=' + (res && res.name));
 
         let strContent: string = res.text;
-        let vstrArray: string[] = strContent.split('\r\n');
+        let vstrArray: string[] = strContent
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0);
         let vstrTitleType: string[] = vstrArray[0].split(',')
         let vstrTitle: string[] = vstrArray[1].split(',')
 
@@ -58,6 +61,10 @@ export default class ResManager {
         for(let nIndex=2; nIndex<vstrArray.length; ++nIndex)
         {
             let vstrLine: Array<string> = vstrArray[nIndex].split(',')
+            if(vstrLine.length < vstrTitleType.length)
+            {
+                continue;
+            }
             let uiPanelTab = new tabAny();
             for(let nIndexLine=0; nIndexLine<vstrTitleType.length; ++nIndexLine)
             {
@@ -76,4 +83,3 @@ export default class ResManager {
         }
     }
 }
-

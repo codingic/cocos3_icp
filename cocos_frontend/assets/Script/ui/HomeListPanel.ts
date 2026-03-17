@@ -83,6 +83,7 @@ export default class HomeListPanel extends UIPanel {
             "oisy登录", //2
             "官方singer",
             "oisy connect", //4
+            "多账户钱包",
         ];
 
        //写个循环创建20个数据
@@ -150,6 +151,10 @@ export default class HomeListPanel extends UIPanel {
         {
             //oisy登录
             UIManager.OpenPanel(EUIPanelType.CHAINFSPANEL);
+        }
+        else if(nId === 5 )
+        {
+            UIManager.OpenPanel(EUIPanelType.MULTIWALLETPANEL);
         }
     }
   
